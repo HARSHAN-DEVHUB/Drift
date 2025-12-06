@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,10 +20,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to login. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -67,14 +67,14 @@ export default function Login() {
             color: "#1a1a1a",
             fontSize: "0.95rem"
           }}>
-            Username
+            Email
           </label>
           <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="Enter your username"
+            placeholder="Enter your email"
             style={{
               width: "100%",
               padding: "0.75rem 1rem",
@@ -153,29 +153,15 @@ export default function Login() {
           borderTop: "1px solid #e8e8e8",
           marginTop: "1rem"
         }}>
-          <p style={{ color: "#666", fontSize: "0.9rem", marginBottom: "1rem" }}>
-            Demo Credentials:
+          <p style={{ color: "#666", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+            <strong>Note:</strong> Use Firebase Authentication
           </p>
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <code style={{ 
-              background: "#f5f5f5", 
-              padding: "0.5rem 1rem", 
-              borderRadius: "8px",
-              fontSize: "0.85rem",
-              border: "1px solid #e0e0e0"
-            }}>
-              admin / admin123
-            </code>
-            <code style={{ 
-              background: "#f5f5f5", 
-              padding: "0.5rem 1rem", 
-              borderRadius: "8px",
-              fontSize: "0.85rem",
-              border: "1px solid #e0e0e0"
-            }}>
-              user / user123
-            </code>
-          </div>
+          <p style={{ color: "#999", fontSize: "0.85rem", marginBottom: "1rem" }}>
+            Admin users must be configured in Firestore with role: "admin"
+          </p>
+          <p style={{ color: "#666", fontSize: "0.85rem" }}>
+            💡 Create an account or contact admin for access
+          </p>
         </div>
       </form>
 

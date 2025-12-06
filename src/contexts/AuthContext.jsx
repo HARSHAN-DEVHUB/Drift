@@ -5,8 +5,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword 
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "../config/firebase";
+import { ref as dbRef, get, set } from "firebase/database";
+import { auth, database } from "../config/firebase";
 
 const AuthContext = createContext();
 
@@ -18,11 +18,13 @@ export function AuthProvider({ children }) {
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Fetch user role from Firestore
+        // Fetch user role from Realtime Database
         try {
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
+          const userRef = dbRef(database, `users/${firebaseUser.uid}`);
+          const snapshot = await get(userRef);
+          
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -38,9 +40,9 @@ export function AuthProvider({ children }) {
               username: firebaseUser.email.split('@')[0],
               fullName: firebaseUser.displayName || "User",
               role: "customer",
-              createdAt: new Date().toISOString()
+              createdAt: Date.now()
             };
-            await setDoc(doc(db, "users", firebaseUser.uid), defaultUserData);
+            await set(userRef, defaultUserData);
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -80,13 +82,14 @@ export function AuthProvider({ children }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Create user document in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // Create user document in Realtime Database
+      const userRef = dbRef(database, `users/${user.uid}`);
+      await set(userRef, {
         email: email,
         username: email.split('@')[0],
         fullName: fullName || "User",
         role: "customer", // Default role
-        createdAt: new Date().toISOString()
+        createdAt: Date.now()
       });
     } catch (error) {
       setLoading(false);

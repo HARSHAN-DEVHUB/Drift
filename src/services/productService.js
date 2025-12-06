@@ -1,22 +1,17 @@
 import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  getDoc,
-  setDoc,
+  ref as dbRef, 
+  push, 
+  set, 
+  update, 
+  remove, 
+  get, 
+  child,
   query,
-  where,
-  orderBy,
-  Timestamp 
-} from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage } from "../config/firebase";
-
-const PRODUCTS_COLLECTION = "products";
-const CATEGORIES_COLLECTION = "categories";
+  orderByChild,
+  equalTo
+} from "firebase/database";
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { database, storage } from "../config/firebase";
 
 // Product CRUD Operations
 export const productService = {
@@ -29,12 +24,15 @@ export const productService = {
       const product = {
         ...productData,
         images: imageUrls,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        createdAt: Date.now(),
+        updatedAt: Date.now()
       };
 
-      const docRef = await addDoc(collection(db, PRODUCTS_COLLECTION), product);
-      return { id: docRef.id, ...product };
+      const productsRef = dbRef(database, 'products');
+      const newProductRef = push(productsRef);
+      await set(newProductRef, product);
+      
+      return { id: newProductRef.key, ...product };
     } catch (error) {
       console.error("Error creating product:", error);
       throw error;
@@ -44,13 +42,28 @@ export const productService = {
   // Get all products
   async getAllProducts() {
     try {
-      const querySnapshot = await getDocs(
-        query(collection(db, PRODUCTS_COLLECTION), orderBy("createdAt", "desc"))
-      );
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const productsRef = dbRef(database, 'products');
+      const snapshot = await get(productsRef);
+      
+      if (snapshot.exists()) {
+        const products = [];
+        const data = snapshot.val();
+        
+        // Convert object to array and sort by createdAt
+        Object.keys(data).forEach(key => {
+          products.push({
+            id: key,
+            ...data[key]
+          });
+        });
+        
+        // Sort by createdAt descending
+        products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        
+        return products;
+      }
+      
+      return [];
     } catch (error) {
       console.error("Error fetching products:", error);
       throw error;
@@ -60,11 +73,11 @@ export const productService = {
   // Get product by ID
   async getProductById(productId) {
     try {
-      const docRef = doc(db, PRODUCTS_COLLECTION, productId);
-      const docSnap = await getDoc(docRef);
+      const productRef = dbRef(database, `products/${productId}`);
+      const snapshot = await get(productRef);
       
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() };
+      if (snapshot.exists()) {
+        return { id: productId, ...snapshot.val() };
       } else {
         throw new Error("Product not found");
       }
@@ -77,15 +90,8 @@ export const productService = {
   // Get products by category
   async getProductsByCategory(category) {
     try {
-      const q = query(
-        collection(db, PRODUCTS_COLLECTION),
-        where("category", "==", category)
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const products = await this.getAllProducts();
+      return products.filter(product => product.category === category);
     } catch (error) {
       console.error("Error fetching products by category:", error);
       throw error;
@@ -95,16 +101,10 @@ export const productService = {
   // Get products by category and subcategory
   async getProductsBySubcategory(category, subcategory) {
     try {
-      const q = query(
-        collection(db, PRODUCTS_COLLECTION),
-        where("category", "==", category),
-        where("subcategory", "==", subcategory)
+      const products = await this.getAllProducts();
+      return products.filter(
+        product => product.category === category && product.subcategory === subcategory
       );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
     } catch (error) {
       console.error("Error fetching products by subcategory:", error);
       throw error;
@@ -114,10 +114,10 @@ export const productService = {
   // Update product
   async updateProduct(productId, updates) {
     try {
-      const docRef = doc(db, PRODUCTS_COLLECTION, productId);
-      await updateDoc(docRef, {
+      const productRef = dbRef(database, `products/${productId}`);
+      await update(productRef, {
         ...updates,
-        updatedAt: Timestamp.now()
+        updatedAt: Date.now()
       });
       return { id: productId, ...updates };
     } catch (error) {
@@ -129,12 +129,12 @@ export const productService = {
   // Delete product
   async deleteProduct(productId) {
     try {
-      const docRef = doc(db, PRODUCTS_COLLECTION, productId);
+      const productRef = dbRef(database, `products/${productId}`);
       
       // Get product data to delete associated images
-      const productSnap = await getDoc(docRef);
-      if (productSnap.exists()) {
-        const product = productSnap.data();
+      const snapshot = await get(productRef);
+      if (snapshot.exists()) {
+        const product = snapshot.val();
         
         // Delete images from storage
         if (product.images && Array.isArray(product.images)) {
@@ -142,7 +142,7 @@ export const productService = {
         }
       }
       
-      await deleteDoc(docRef);
+      await remove(productRef);
       return { success: true };
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -156,10 +156,10 @@ export const productService = {
       const uploadPromises = imageFiles.map(async (file) => {
         const timestamp = Date.now();
         const fileName = `products/${timestamp}_${file.name}`;
-        const storageRef = ref(storage, fileName);
+        const fileRef = storageRef(storage, fileName);
         
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
+        await uploadBytes(fileRef, file);
+        const downloadURL = await getDownloadURL(fileRef);
         return downloadURL;
       });
 
@@ -175,7 +175,7 @@ export const productService = {
     try {
       const deletePromises = imageUrls.map(async (url) => {
         try {
-          const imageRef = ref(storage, url);
+          const imageRef = storageRef(storage, url);
           await deleteObject(imageRef);
         } catch (error) {
           console.warn("Could not delete image:", url, error);
@@ -194,26 +194,21 @@ export const categoryService = {
   // Get all categories
   async getAllCategories() {
     try {
-      const querySnapshot = await getDocs(collection(db, CATEGORIES_COLLECTION));
-      const categories = {};
+      const categoriesRef = dbRef(database, 'categories');
+      const snapshot = await get(categoriesRef);
       
-      querySnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        categories[doc.id] = data.subcategories || [];
-      });
-      
-      // Return default categories if none exist
-      if (Object.keys(categories).length === 0) {
-        return {
-          appliances: ['refrigerator', 'air-conditioner'],
-          mobiles: ['apple', 'vivo', 'oppo', 'realme', 'oneplus', 'motorola'],
-          electronics: ['home-theater', 'sound-bar'],
-          tv: ['toshiba', 'mi', 'realme', 'samsung', 'lg', 'assembled-tv', 'tcl'],
-          trending: ['best-sellers', 'new-arrivals']
-        };
+      if (snapshot.exists()) {
+        return snapshot.val();
       }
       
-      return categories;
+      // Return default categories if none exist
+      return {
+        appliances: ['refrigerator', 'air-conditioner'],
+        mobiles: ['apple', 'vivo', 'oppo', 'realme', 'oneplus', 'motorola'],
+        electronics: ['home-theater', 'sound-bar'],
+        tv: ['toshiba', 'mi', 'realme', 'samsung', 'lg', 'assembled-tv', 'tcl'],
+        trending: ['best-sellers', 'new-arrivals']
+      };
     } catch (error) {
       console.error("Error fetching categories:", error);
       // Return default categories on error
@@ -231,13 +226,9 @@ export const categoryService = {
   async saveCategory(categoryName, subcategories) {
     try {
       const categoryId = categoryName.toLowerCase().replace(/\s+/g, '-');
-      const docRef = doc(db, CATEGORIES_COLLECTION, categoryId);
+      const categoryRef = dbRef(database, `categories/${categoryId}`);
       
-      await setDoc(docRef, {
-        name: categoryName,
-        subcategories: subcategories,
-        updatedAt: Timestamp.now()
-      });
+      await set(categoryRef, subcategories);
       
       return { success: true };
     } catch (error) {
@@ -250,8 +241,8 @@ export const categoryService = {
   async deleteCategory(categoryName) {
     try {
       const categoryId = categoryName.toLowerCase().replace(/\s+/g, '-');
-      const docRef = doc(db, CATEGORIES_COLLECTION, categoryId);
-      await deleteDoc(docRef);
+      const categoryRef = dbRef(database, `categories/${categoryId}`);
+      await remove(categoryRef);
       return { success: true };
     } catch (error) {
       console.error("Error deleting category:", error);

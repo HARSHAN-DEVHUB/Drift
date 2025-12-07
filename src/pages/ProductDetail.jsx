@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useCart } from "../components/CartProvider";
-import { products as localProducts } from "../data/products.js";
 import { productService } from "../services/productService";
 
 export default function ProductDetail() {
@@ -19,14 +18,12 @@ export default function ProductDetail() {
 				// Transform Firebase product to match expected format
 				const transformedProduct = {
 					...firebaseProduct,
-					image: firebaseProduct.images?.[0] || 'https://via.placeholder.com/400'
+					image: firebaseProduct.images?.[0] || firebaseProduct.image || 'https://via.placeholder.com/400'
 				};
 				setProduct(transformedProduct);
 			} catch (error) {
 				console.error("Error loading product:", error);
-				// Fallback to local products
-				const localProduct = localProducts.find((p) => p.id === id);
-				setProduct(localProduct || null);
+				setProduct(null);
 			} finally {
 				setLoading(false);
 			}

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { products as localProducts } from "../data/products.js";
 import { productService } from "../services/productService";
 
 export default function Products() {
@@ -15,12 +14,12 @@ export default function Products() {
 				// Transform Firebase products to match the expected format
 				const transformedProducts = firebaseProducts.map(p => ({
 					...p,
-					image: p.images?.[0] || 'https://via.placeholder.com/300'
+					image: p.images?.[0] || p.image || 'https://via.placeholder.com/300'
 				}));
-				setProducts(transformedProducts.length > 0 ? transformedProducts : localProducts);
+				setProducts(transformedProducts);
 			} catch (error) {
 				console.error("Error loading products:", error);
-				setProducts(localProducts);
+				setProducts([]);
 			} finally {
 				setLoading(false);
 			}

@@ -3,6 +3,7 @@ import { Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./components/CartProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminLayout from "./components/AdminLayout";
 import Header from "./components/Header";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
@@ -11,7 +12,18 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import ProductManagement from "./pages/ProductManagement";
 import AdminSetup from "./pages/AdminSetup";
-import Account from "./pages/Account";
+import AdminDashboard from './pages/AdminDashboard';
+import BannerManagement from './pages/BannerManagement';
+import HomePageManager from './pages/HomePageManager';
+import StockManagement from './pages/StockManagement';
+import Analytics from './pages/Analytics';
+import OrderManagement from './pages/OrderManagement';
+import CustomerManagement from './pages/CustomerManagement';
+import ReviewsManagement from './pages/ReviewsManagement';
+import RevenueManagement from './pages/RevenueManagement';
+import ActivityLogs from './pages/ActivityLogs';
+import AdminSettings from './pages/AdminSettings';
+import Account from './pages/Account';
 import Orders from "./pages/Orders";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -24,6 +36,7 @@ export default function App() {
 				<Header />
 				<main className="amazon-main">
 					<Routes>
+						{/* Public Routes */}
 						<Route path="/" element={<Home />} />
 						<Route path="/products" element={<Products />} />
 						<Route path="/products/:id" element={<ProductDetail />} />
@@ -31,14 +44,8 @@ export default function App() {
 						<Route path="/checkout" element={<Checkout />} />
 						<Route path="/login" element={<Login />} />
 						<Route path="/admin/setup" element={<AdminSetup />} />
-						<Route 
-							path="/admin/products" 
-							element={
-								<ProtectedRoute requireAdmin={true}>
-									<ProductManagement />
-								</ProtectedRoute>
-							} 
-						/>
+						
+						{/* Customer Routes */}
 						<Route 
 							path="/account" 
 							element={
@@ -53,8 +60,33 @@ export default function App() {
 								<ProtectedRoute>
 									<Orders />
 								</ProtectedRoute>
-							} 
+							}
 						/>
+
+						{/* Admin Routes - All wrapped in AdminLayout */}
+						<Route
+							path="/admin"
+							element={
+								<ProtectedRoute requireAdmin={true}>
+									<AdminLayout />
+								</ProtectedRoute>
+							}
+						>
+							<Route index element={<AdminDashboard />} />
+							<Route path="homepage" element={<HomePageManager />} />
+							<Route path="products" element={<ProductManagement />} />
+							<Route path="stock" element={<StockManagement />} />
+							<Route path="analytics" element={<Analytics />} />
+							<Route path="orders" element={<OrderManagement />} />
+							<Route path="customers" element={<CustomerManagement />} />
+							<Route path="reviews" element={<ReviewsManagement />} />
+							<Route path="revenue" element={<RevenueManagement />} />
+							<Route path="activity" element={<ActivityLogs />} />
+							<Route path="settings" element={<AdminSettings />} />
+							<Route path="banners" element={<BannerManagement />} />
+						</Route>
+
+						{/* 404 */}
 						<Route path="*" element={<NotFound />} />
 					</Routes>
 				</main>

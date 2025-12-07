@@ -1,0 +1,224 @@
+.admin-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  z-index: 999;
+  overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.admin-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #e71d36 0%, #c41530 100%);
+  border-radius: 3px;
+}
+
+/* Header Section */
+.sidebar-header {
+  padding: 2rem 1.5rem;
+  background: linear-gradient(135deg, #e71d36 0%, #c41530 100%);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.profile-info h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: white;
+}
+
+.profile-info p {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-nav li {
+  margin: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  color: #1a1a1a;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(135deg, #e71d36 0%, #c41530 100%);
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.nav-item:hover {
+  background-color: #f8f9fa;
+  color: #e71d36;
+}
+
+.nav-item:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(231, 29, 54, 0.1) 0%, transparent 100%);
+  color: #e71d36;
+  font-weight: 700;
+}
+
+.nav-item.active::before {
+  transform: scaleY(1);
+}
+
+.nav-icon {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  transition: transform 0.2s ease;
+}
+
+.nav-text {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* Footer Section */
+.sidebar-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  background-color: #ffffff;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+  background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logout-button:hover {
+  background: linear-gradient(135deg, #e71d36 0%, #c41530 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 29, 54, 0.3);
+}
+
+.logout-button .nav-icon {
+  font-size: 1.3rem;
+}
+
+/* Mobile Styles */
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
+    top: 60px;
+    height: calc(100vh - 60px);
+  }
+}
+
+/* Closed State */
+.admin-sidebar.closed {
+  width: 80px;
+}
+
+.admin-sidebar.closed .profile-info,
+.admin-sidebar.closed .nav-text {
+  display: none;
+}
+
+.admin-sidebar.closed .admin-profile {
+  justify-content: center;
+}
+
+.admin-sidebar.closed .nav-item {
+  justify-content: center;
+  padding: 1rem;
+}
+
+.admin-sidebar.closed .logout-button {
+  justify-content: center;
+}
+
+.admin-sidebar.closed .sidebar-header {
+  padding: 1rem;
+}
+
+@media (min-width: 1025px) {
+  .admin-sidebar.closed + .admin-content {
+    margin-left: 80px;
+  }
+}

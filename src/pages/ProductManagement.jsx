@@ -14,7 +14,10 @@ export default function ProductManagement() {
 		rating: '',
 		description: '',
 		brand: '',
-		specifications: ''
+		specifications: '',
+		isTrending: false,
+		isFeatured: false,
+		priority: 0
 	});
 	const [imageFiles, setImageFiles] = useState([]);
 	const [imagePreviews, setImagePreviews] = useState([]);
@@ -28,8 +31,12 @@ export default function ProductManagement() {
 	});
 	const [categories, setCategories] = useState({});
 	const [allProducts, setAllProducts] = useState([]);
+	const [filteredProducts, setFilteredProducts] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
+	const [sortBy, setSortBy] = useState('newest');
+	const [filterCategory, setFilterCategory] = useState('all');
+	const [searchQuery, setSearchQuery] = useState('');
 
 	// Load categories and products on mount
 	useEffect(() => {
@@ -68,10 +75,55 @@ export default function ProductManagement() {
 		try {
 			const products = await productService.getAllProducts();
 			setAllProducts(products);
+			setFilteredProducts(products);
 		} catch (error) {
 			console.error('Error loading products:', error);
 		}
 	};
+
+	// Filter and sort products
+	useEffect(() => {
+		let filtered = [...allProducts];
+
+		// Filter by category
+		if (filterCategory !== 'all') {
+			filtered = filtered.filter(p => p.category === filterCategory);
+		}
+
+		// Filter by search query
+		if (searchQuery.trim()) {
+			filtered = filtered.filter(p => 
+				p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				p.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+			);
+		}
+
+		// Sort products
+		switch (sortBy) {
+			case 'name-asc':
+				filtered.sort((a, b) => a.title?.localeCompare(b.title));
+				break;
+			case 'name-desc':
+				filtered.sort((a, b) => b.title?.localeCompare(a.title));
+				break;
+			case 'price-asc':
+				filtered.sort((a, b) => a.price - b.price);
+				break;
+			case 'price-desc':
+				filtered.sort((a, b) => b.price - a.price);
+				break;
+			case 'priority':
+				filtered.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+				break;
+			case 'newest':
+			default:
+				filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+				break;
+		}
+
+		setFilteredProducts(filtered);
+	}, [allProducts, sortBy, filterCategory, searchQuery]);
 
 	const handleInputChange = (e) => {
 		const { name, value } = e.target;
@@ -126,6 +178,9 @@ export default function ProductManagement() {
 				description: formData.description,
 				brand: formData.brand || selectedSubcategory,
 				specifications: formData.specifications,
+				isTrending: formData.isTrending,
+				isFeatured: formData.isFeatured,
+				priority: parseInt(formData.priority) || 0,
 				addedBy: user.uid,
 				addedByName: user.fullName
 			};
@@ -141,7 +196,10 @@ export default function ProductManagement() {
 				rating: '',
 				description: '',
 				brand: '',
-				specifications: ''
+				specifications: '',
+				isTrending: false,
+				isFeatured: false,
+				priority: 0
 			});
 			setImageFiles([]);
 			setImagePreviews([]);
@@ -596,6 +654,71 @@ export default function ProductManagement() {
 								/>
 							</div>
 
+							<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
+								<div style={{ 
+									padding: '1rem', 
+									border: '2px solid #1a1a1a', 
+									borderRadius: '8px',
+									display: 'flex',
+									alignItems: 'center',
+									gap: '0.75rem'
+								}}>
+									<input 
+										type="checkbox"
+										name="isTrending"
+										checked={formData.isTrending}
+										onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
+										style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+									/>
+									<label style={{ fontWeight: '700', color: '#1a1a1a', cursor: 'pointer' }} onClick={() => setFormData({ ...formData, isTrending: !formData.isTrending })}>
+										🔥 Trending
+									</label>
+								</div>
+								<div style={{ 
+									padding: '1rem', 
+									border: '2px solid #1a1a1a', 
+									borderRadius: '8px',
+									display: 'flex',
+									alignItems: 'center',
+									gap: '0.75rem'
+								}}>
+									<input 
+										type="checkbox"
+										name="isFeatured"
+										checked={formData.isFeatured}
+										onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
+										style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+									/>
+									<label style={{ fontWeight: '700', color: '#1a1a1a', cursor: 'pointer' }} onClick={() => setFormData({ ...formData, isFeatured: !formData.isFeatured })}>
+										✨ Featured
+									</label>
+								</div>
+								<div>
+									<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#1a1a1a', fontSize: '0.9rem' }}>
+										Priority Order
+									</label>
+									<input 
+										type="number"
+										name="priority"
+										value={formData.priority}
+										onChange={handleInputChange}
+										placeholder="0"
+										min="0"
+										style={{ 
+											width: '100%', 
+											padding: '0.75rem', 
+											border: '2px solid #1a1a1a', 
+											borderRadius: '8px', 
+											fontSize: '1rem',
+											fontWeight: '600'
+										}}
+									/>
+								</div>
+							</div>
+							<p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '1.2rem', fontWeight: '600' }}>
+								💡 Higher priority number = shows first. Trending/Featured products appear in special sections.
+							</p>
+
 							<div style={{ marginBottom: '1.5rem' }}>
 								<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#1a1a1a' }}>
 									Product Images *
@@ -644,7 +767,7 @@ export default function ProductManagement() {
 					{/* Preview Section */}
 					<div>
 						<h2 style={{ color: '#1a1a1a', fontSize: '1.8rem', fontWeight: '800' }}>
-							👁️ Product Preview
+							 Product Preview
 						</h2>
 						<div style={{ 
 							backgroundColor: '#fff', 
@@ -746,11 +869,96 @@ export default function ProductManagement() {
 			{/* TAB 2: Product List */}
 			{activeTab === 'list' && (
 				<div>
-					<h2 style={{ color: '#1a1a1a', fontSize: '1.8rem', fontWeight: '800', marginBottom: '1.5rem' }}>
-						📋 All Products ({allProducts.length})
-					</h2>
+					<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+						<h2 style={{ color: '#1a1a1a', fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
+							📋 All Products ({filteredProducts.length} / {allProducts.length})
+						</h2>
+					</div>
+
+					{/* Filter and Sort Controls */}
+					<div style={{ 
+						display: 'grid', 
+						gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+						gap: '1rem', 
+						marginBottom: '1.5rem',
+						padding: '1.5rem',
+						backgroundColor: '#f9f9f9',
+						borderRadius: '12px',
+						border: '2px solid #e0e0e0'
+					}}>
+						<div>
+							<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#1a1a1a', fontSize: '0.9rem' }}>
+								🔍 Search Products
+							</label>
+							<input
+								type="text"
+								placeholder="Search by name, brand, description..."
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								style={{
+									width: '100%',
+									padding: '0.75rem',
+									border: '2px solid #1a1a1a',
+									borderRadius: '8px',
+									fontSize: '1rem',
+									fontWeight: '600'
+								}}
+							/>
+						</div>
+
+						<div>
+							<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#1a1a1a', fontSize: '0.9rem' }}>
+								📂 Filter by Category
+							</label>
+							<select
+								value={filterCategory}
+								onChange={(e) => setFilterCategory(e.target.value)}
+								style={{
+									width: '100%',
+									padding: '0.75rem',
+									border: '2px solid #1a1a1a',
+									borderRadius: '8px',
+									fontSize: '1rem',
+									fontWeight: '600',
+									cursor: 'pointer'
+								}}
+							>
+								<option value="all">All Categories</option>
+								{Object.keys(categories).map((cat) => (
+									<option key={cat} value={cat}>{cat}</option>
+								))}
+							</select>
+						</div>
+
+						<div>
+							<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#1a1a1a', fontSize: '0.9rem' }}>
+								🔄 Sort By
+							</label>
+							<select
+								value={sortBy}
+								onChange={(e) => setSortBy(e.target.value)}
+								style={{
+									width: '100%',
+									padding: '0.75rem',
+									border: '2px solid #1a1a1a',
+									borderRadius: '8px',
+									fontSize: '1rem',
+									fontWeight: '600',
+									cursor: 'pointer'
+								}}
+							>
+								<option value="newest">Newest First</option>
+								<option value="priority">Highest Priority</option>
+								<option value="name-asc">Name (A-Z)</option>
+								<option value="name-desc">Name (Z-A)</option>
+								<option value="price-asc">Price (Low to High)</option>
+								<option value="price-desc">Price (High to Low)</option>
+							</select>
+						</div>
+					</div>
+
 					<div style={{ display: 'grid', gap: '1rem' }}>
-						{allProducts.length === 0 ? (
+						{filteredProducts.length === 0 ? (
 							<div style={{ 
 								textAlign: 'center', 
 								padding: '4rem 2rem', 
@@ -758,16 +966,18 @@ export default function ProductManagement() {
 								borderRadius: '12px',
 								border: '2px dashed #ccc'
 							}}>
-								<p style={{ fontSize: '3rem', marginBottom: '1rem' }}>📦</p>
+								<p style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+									{allProducts.length === 0 ? '📦' : '🔍'}
+								</p>
 								<p style={{ fontSize: '1.3rem', fontWeight: '700', color: '#666' }}>
-									No products added yet
+									{allProducts.length === 0 ? 'No products added yet' : 'No products match your filters'}
 								</p>
 								<p style={{ color: '#999', marginTop: '0.5rem' }}>
-									Add your first product to get started
+									{allProducts.length === 0 ? 'Add your first product to get started' : 'Try adjusting your search or filters'}
 								</p>
 							</div>
 						) : (
-							allProducts.map((product) => (
+							filteredProducts.map((product) => (
 								<div key={product.id} style={{ 
 									backgroundColor: '#fff', 
 									padding: '1.5rem', 
@@ -792,9 +1002,47 @@ export default function ProductManagement() {
 										}}
 									/>
 									<div>
-										<h3 style={{ margin: '0 0 0.5rem 0', color: '#1a1a1a', fontSize: '1.3rem', fontWeight: '800' }}>
-											{product.title}
-										</h3>
+										<div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+											<h3 style={{ margin: 0, color: '#1a1a1a', fontSize: '1.3rem', fontWeight: '800' }}>
+												{product.title}
+											</h3>
+											{product.isFeatured && (
+												<span style={{ 
+													padding: '0.25rem 0.75rem', 
+													backgroundColor: '#FFD700', 
+													color: '#000', 
+													borderRadius: '6px', 
+													fontSize: '0.75rem', 
+													fontWeight: '700'
+												}}>
+													✨ Featured
+												</span>
+											)}
+											{product.isTrending && (
+												<span style={{ 
+													padding: '0.25rem 0.75rem', 
+													backgroundColor: '#FF6B6B', 
+													color: '#fff', 
+													borderRadius: '6px', 
+													fontSize: '0.75rem', 
+													fontWeight: '700'
+												}}>
+													🔥 Trending
+												</span>
+											)}
+											{(product.priority || 0) > 0 && (
+												<span style={{ 
+													padding: '0.25rem 0.75rem', 
+													backgroundColor: '#4A90E2', 
+													color: '#fff', 
+													borderRadius: '6px', 
+													fontSize: '0.75rem', 
+													fontWeight: '700'
+												}}>
+													⭐ Priority: {product.priority}
+												</span>
+											)}
+										</div>
 										<p style={{ margin: '0.3rem 0', color: '#e71d36', fontSize: '1.3rem', fontWeight: '900' }}>
 											₹{product.price}
 										</p>

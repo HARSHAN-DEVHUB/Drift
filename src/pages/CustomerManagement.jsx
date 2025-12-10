@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ref as dbRef, get, set, update } from 'firebase/database';
-import { database } from '../config/firebase';
+import { ref as dbRef, get, set, update, remove } from 'firebase/database';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { auth, database } from '../config/firebase';
 import './OrderManagement.css';
 
 const CustomerManagement = () => {
@@ -8,6 +9,16 @@ const CustomerManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+    username: '',
+    role: 'customer'
+  });
 
   useEffect(() => {
     loadCustomers();
@@ -57,6 +68,127 @@ const CustomerManagement = () => {
     }
   };
 
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.password || !formData.fullName) {
+      alert('❌ Please fill in all required fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      alert('❌ Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      
+      const user = userCredential.user;
+      
+      // Create user profile in database
+      const userRef = dbRef(database, `users/${user.uid}`);
+      await set(userRef, {
+        email: formData.email,
+        fullName: formData.fullName,
+        username: formData.username || formData.email.split('@')[0],
+        role: formData.role,
+        createdAt: new Date().toISOString(),
+        addresses: []
+      });
+      
+      alert(`✅ User created successfully!\nEmail: ${formData.email}\nRole: ${formData.role}`);
+      setShowAddModal(false);
+      setFormData({ email: '', password: '', fullName: '', username: '', role: 'customer' });
+      loadCustomers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        alert('❌ Email is already in use');
+      } else if (error.code === 'auth/invalid-email') {
+        alert('❌ Invalid email address');
+      } else if (error.code === 'auth/weak-password') {
+        alert('❌ Password is too weak');
+      } else {
+        alert('❌ Failed to create user: ' + error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedUser) return;
+
+    try {
+      const userRef = dbRef(database, `users/${selectedUser.uid}`);
+      await update(userRef, {
+        fullName: formData.fullName,
+        username: formData.username,
+        role: formData.role
+      });
+      
+      alert('✅ User updated successfully!');
+      setShowEditModal(false);
+      setSelectedUser(null);
+      setFormData({ email: '', password: '', fullName: '', username: '', role: 'customer' });
+      loadCustomers();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('❌ Failed to update user');
+    }
+  };
+
+  const handleDeleteUser = async (uid, email) => {
+    if (!window.confirm(`⚠️ Are you sure you want to delete user: ${email}?\n\nThis action cannot be undone!`)) {
+      return;
+    }
+
+    if (!window.confirm('⚠️ FINAL CONFIRMATION: This will permanently delete the user account and all associated data!')) {
+      return;
+    }
+
+    try {
+      // Delete user data from database
+      const userRef = dbRef(database, `users/${uid}`);
+      await remove(userRef);
+      
+      // Note: Deleting from Firebase Auth requires admin SDK or the user to be currently signed in
+      // For now, we'll just delete from database. You may need Cloud Functions for full deletion.
+      
+      alert('✅ User deleted successfully from database!\n\nNote: User can still sign in with their credentials. Use Firebase Console to delete from Authentication.');
+      loadCustomers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('❌ Failed to delete user');
+    }
+  };
+
+  const openAddModal = () => {
+    setFormData({ email: '', password: '', fullName: '', username: '', role: 'customer' });
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    setFormData({
+      email: user.email,
+      password: '',
+      fullName: user.fullName || '',
+      username: user.username || '',
+      role: user.role || 'customer'
+    });
+    setShowEditModal(true);
+  };
+
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,6 +214,24 @@ const CustomerManagement = () => {
           <h1>👥 Customer Management</h1>
           <p>Manage users, roles, and customer information</p>
         </div>
+        <button
+          onClick={openAddModal}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: '#e71d36',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          ➕ Add New User
+        </button>
       </div>
 
       {/* Stats */}
@@ -176,20 +326,38 @@ const CustomerManagement = () => {
                   </td>
                   <td>{new Date(customer.createdAt).toLocaleDateString()}</td>
                   <td>
-                    <select
-                      value={customer.role || 'customer'}
-                      onChange={(e) => handleRoleChange(customer.uid, e.target.value)}
-                      style={{
-                        padding: '0.5rem',
-                        borderRadius: '8px',
-                        border: '1px solid #ddd',
-                        background: 'white',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <option value="customer">Customer</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => openEditModal(customer)}
+                        title="Edit User"
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: '#2196f3',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: '600'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(customer.uid, customer.email)}
+                        title="Delete User"
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: '600'
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -197,6 +365,365 @@ const CustomerManagement = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Add User Modal */}
+      {showAddModal && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowAddModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>➕ Add New User</h2>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddUser}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Email Address <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="user@example.com"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Password <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Min 6 characters"
+                  required
+                  minLength={6}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Full Name <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="John Doe"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="Optional - defaults to email prefix"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Role <span style={{ color: 'red' }}>*</span>
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                >
+                  <option value="customer">Customer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: loading ? '#ccc' : '#e71d36',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem'
+                  }}
+                >
+                  {loading ? 'Creating...' : '✅ Create User'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowEditModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>✏️ Edit User</h2>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditUser}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  disabled
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem',
+                    background: '#f5f5f5',
+                    cursor: 'not-allowed'
+                  }}
+                />
+                <small style={{ color: '#666', fontSize: '0.85rem' }}>Email cannot be changed</small>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Full Name <span style={{ color: 'red' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="John Doe"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="username"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Role <span style={{ color: 'red' }}>*</span>
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ddd',
+                    fontSize: '1rem'
+                  }}
+                >
+                  <option value="customer">Customer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: '#e71d36',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem'
+                  }}
+                >
+                  💾 Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

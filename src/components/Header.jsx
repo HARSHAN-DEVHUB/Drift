@@ -1,12 +1,18 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "./CartProvider";
+import { useWishlist } from "../contexts/WishlistContext";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Header() {
 	const { totalItems } = useCart();
+	const { wishlistCount } = useWishlist();
 	const { user, isAuthenticated, logout, isAdmin } = useAuth();
 	const [openGroup, setOpenGroup] = useState(null);
+	const [mobileCategory, setMobileCategory] = useState(null);
+	const [searchTerm, setSearchTerm] = useState('');
+	const [searchCategory, setSearchCategory] = useState('all');
+	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const navigate = useNavigate();
 	
 	// Memoize auth checks to prevent unnecessary re-renders
@@ -18,130 +24,224 @@ export default function Header() {
 		navigate("/");
 	};
 
+	const handleSearch = (e) => {
+		e.preventDefault();
+		const params = new URLSearchParams();
+		if (searchTerm) params.set('search', searchTerm);
+		if (searchCategory !== 'all') params.set('category', searchCategory);
+		navigate(`/products?${params.toString()}`);
+		setSearchTerm('');
+	};
+
 	return (
-		<header className="amazon-header">
-			<div className="amazon-header-top">
-				<Link to="/" className="amazon-logo">
-					<div className="logo-content">
-						<img src="/assets/logo.png" alt="DRIFT ENTERPRISES Logo" style={{ height: '45px' }} />
-						<div className="logo-text">
-							<div className="logo-main">DRIFT</div>
-							<div className="logo-sub">ENTERPRISES</div>
-						</div>
-					</div>
+		<header className="header">
+			<div className="header-container">
+				<Link to="/" className="logo">
+					<img src="/assets/logo.png" alt="DRIFT" style={{ height: '40px' }} />
+					<span>DRIFT</span>
 				</Link>
-				<form className="amazon-search" onSubmit={(e)=>e.preventDefault()}>
-					<select className="amazon-search-category" defaultValue="all">
+				
+				<form className="search-bar" onSubmit={handleSearch}>
+					<select value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)}>
 						<option value="all">All</option>
 						<option value="electronics">Electronics</option>
 						<option value="mobiles">Mobiles</option>
 						<option value="appliances">Appliances</option>
 						<option value="tv">TV</option>
 					</select>
-					<input className="amazon-search-input" placeholder="Search for products, brands and more..." />
-					<button type="submit" className="amazon-search-button">🔍</button>
+					<input 
+						type="text"
+						placeholder="Search products..." 
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
+					<button type="submit">Search</button>
 				</form>
-				<nav className="amazon-header-links">
+
+				<nav className="nav-links">
 					{userIsAdmin && (
-						<Link to="/admin/products" className="amazon-header-link admin-link">
-							<span className="icon">⚙️</span>
-							<span className="text">Admin</span>
-						</Link>
+						<Link to="/admin/products">Admin</Link>
 					)}
 					{userIsAuthenticated ? (
 						<>
-							<Link to="/account" className="amazon-header-link">
-								<span className="icon">👤</span>
-								<span className="text">{user?.username || "Account"}</span>
-							</Link>
-							<button 
-								onClick={handleLogout} 
-								className="amazon-header-link logout-btn" 
-								style={{ 
-									background: "none", 
-									border: "none", 
-									cursor: "pointer",
-									color: "inherit",
-									font: "inherit",
-									padding: "0"
-								}}
-							>
-								<span className="icon">🚪</span>
-								<span className="text">Logout</span>
+							<Link to="/account">{user?.username || "Account"}</Link>
+							<button onClick={handleLogout} style={{ background: "none", border: "none", cursor: "pointer", color: "white" }}>
+								Logout
 							</button>
 						</>
 					) : (
-						<Link to="/login" className="amazon-header-link">
-							<span className="icon">🔐</span>
-							<span className="text">Sign In</span>
-						</Link>
+						<Link to="/login">Sign In</Link>
 					)}
-					{userIsAdmin ? (
-						<Link to="/admin/orders" className="amazon-header-link">
-							<span className="icon">📦</span>
-							<span className="text">Orders</span>
-						</Link>
-					) : (
-						<Link to="/orders" className="amazon-header-link">
-							<span className="icon">📦</span>
-							<span className="text">Orders</span>
-						</Link>
+					<Link to="/wishlist">Wishlist {wishlistCount > 0 && `(${wishlistCount})`}</Link>
+					<Link to={userIsAdmin ? "/admin/orders" : "/orders"}>Orders</Link>
+					<Link to="/cart">Cart ({totalItems})</Link>
+				</nav>
+
+				<button className="menu-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+					☰
+				</button>
+			</div>
+
+			{mobileMenuOpen && (
+				<>
+					<div className="menu-overlay" onClick={() => setMobileMenuOpen(false)}></div>
+					<nav className="mobile-menu">
+						<button className="close-menu" onClick={() => setMobileMenuOpen(false)}>✕</button>
+						
+						{userIsAdmin && <Link to="/admin/products" onClick={() => setMobileMenuOpen(false)}>Admin</Link>}
+						{userIsAuthenticated ? (
+							<>
+								<Link to="/account" onClick={() => setMobileMenuOpen(false)}>{user?.username || "Account"}</Link>
+								<button onClick={() => { handleLogout(); setMobileMenuOpen(false); }}>Logout</button>
+							</>
+						) : (
+							<Link to="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+						)}
+						<Link to="/wishlist" onClick={() => setMobileMenuOpen(false)}>Wishlist ({wishlistCount})</Link>
+						<Link to={userIsAdmin ? "/admin/orders" : "/orders"} onClick={() => setMobileMenuOpen(false)}>Orders</Link>
+						<Link to="/cart" onClick={() => setMobileMenuOpen(false)}>Cart ({totalItems})</Link>
+						
+						<div className="mobile-menu-divider"></div>
+						
+						<div className="mobile-category-section">
+							<div className="mobile-category-header">Categories</div>
+							
+							<div className="mobile-category-group">
+								<button className="mobile-category-toggle" onClick={() => setMobileCategory(mobileCategory === 'appliances' ? null : 'appliances')}>
+									<span>Appliances</span>
+									<span className={`arrow ${mobileCategory === 'appliances' ? 'open' : ''}`}>›</span>
+								</button>
+								{mobileCategory === 'appliances' && (
+									<div className="mobile-dropdown">
+										<Link to="/products?category=appliances&sub=refrigerator" onClick={() => setMobileMenuOpen(false)}>Refrigerator</Link>
+										<Link to="/products?category=appliances&sub=air-conditioner" onClick={() => setMobileMenuOpen(false)}>Air Conditioner</Link>
+									</div>
+								)}
+							</div>
+							
+							<div className="mobile-category-group">
+								<button className="mobile-category-toggle" onClick={() => setMobileCategory(mobileCategory === 'mobiles' ? null : 'mobiles')}>
+									<span>Mobiles</span>
+									<span className={`arrow ${mobileCategory === 'mobiles' ? 'open' : ''}`}>›</span>
+								</button>
+								{mobileCategory === 'mobiles' && (
+									<div className="mobile-dropdown">
+										<Link to="/products?category=mobiles&sub=apple" onClick={() => setMobileMenuOpen(false)}>Apple</Link>
+										<Link to="/products?category=mobiles&sub=poco" onClick={() => setMobileMenuOpen(false)}>Poco</Link>
+										<Link to="/products?category=mobiles&sub=vivo" onClick={() => setMobileMenuOpen(false)}>Vivo</Link>
+										<Link to="/products?category=mobiles&sub=oppo" onClick={() => setMobileMenuOpen(false)}>Oppo</Link>
+										<Link to="/products?category=mobiles&sub=realme" onClick={() => setMobileMenuOpen(false)}>Realme</Link>
+										<Link to="/products?category=mobiles&sub=oneplus" onClick={() => setMobileMenuOpen(false)}>OnePlus</Link>
+										<Link to="/products?category=mobiles&sub=motorola" onClick={() => setMobileMenuOpen(false)}>Motorola</Link>
+									</div>
+								)}
+							</div>
+							
+							<div className="mobile-category-group">
+								<button className="mobile-category-toggle" onClick={() => setMobileCategory(mobileCategory === 'electronics' ? null : 'electronics')}>
+									<span>Electronics</span>
+									<span className={`arrow ${mobileCategory === 'electronics' ? 'open' : ''}`}>›</span>
+								</button>
+								{mobileCategory === 'electronics' && (
+									<div className="mobile-dropdown">
+										<Link to="/products?category=electronics&sub=home-theater" onClick={() => setMobileMenuOpen(false)}>Home Theater</Link>
+										<Link to="/products?category=electronics&sub=sound-bar" onClick={() => setMobileMenuOpen(false)}>Sound Bar</Link>
+									</div>
+								)}
+							</div>
+							
+							<div className="mobile-category-group">
+								<button className="mobile-category-toggle" onClick={() => setMobileCategory(mobileCategory === 'tv' ? null : 'tv')}>
+									<span>TV</span>
+									<span className={`arrow ${mobileCategory === 'tv' ? 'open' : ''}`}>›</span>
+								</button>
+								{mobileCategory === 'tv' && (
+									<div className="mobile-dropdown">
+										<Link to="/products?category=tv&sub=toshiba" onClick={() => setMobileMenuOpen(false)}>Toshiba</Link>
+										<Link to="/products?category=tv&sub=mi" onClick={() => setMobileMenuOpen(false)}>Mi</Link>
+										<Link to="/products?category=tv&sub=realme" onClick={() => setMobileMenuOpen(false)}>Realme</Link>
+										<Link to="/products?category=tv&sub=samsung" onClick={() => setMobileMenuOpen(false)}>Samsung</Link>
+										<Link to="/products?category=tv&sub=lg" onClick={() => setMobileMenuOpen(false)}>LG</Link>
+										<Link to="/products?category=tv&sub=assembled-tv" onClick={() => setMobileMenuOpen(false)}>Assembled TV</Link>
+										<Link to="/products?category=tv&sub=tcl" onClick={() => setMobileMenuOpen(false)}>TCL</Link>
+									</div>
+								)}
+							</div>
+							
+							<div className="mobile-category-group">
+								<button className="mobile-category-toggle" onClick={() => setMobileCategory(mobileCategory === 'trending' ? null : 'trending')}>
+									<span>Trending</span>
+									<span className={`arrow ${mobileCategory === 'trending' ? 'open' : ''}`}>›</span>
+								</button>
+								{mobileCategory === 'trending' && (
+									<div className="mobile-dropdown">
+										<Link to="/products?category=trending&sub=best-sellers" onClick={() => setMobileMenuOpen(false)}>Best Sellers</Link>
+										<Link to="/products?category=trending&sub=new-arrivals" onClick={() => setMobileMenuOpen(false)}>New Arrivals</Link>
+									</div>
+								)}
+							</div>
+						</div>
+					</nav>
+				</>
+			)}
+
+			<nav className="categories">
+				<div onMouseEnter={() => setOpenGroup('appliances')} onMouseLeave={() => setOpenGroup(null)}>
+					<span>Appliances</span>
+					{openGroup === 'appliances' && (
+						<div className="dropdown">
+							<Link to="/products?category=appliances&sub=refrigerator">Refrigerator</Link>
+							<Link to="/products?category=appliances&sub=air-conditioner">Air Conditioner</Link>
+						</div>
 					)}
-					<Link to="/cart" className="amazon-header-cart">
-						<span className="cart-icon">🛒</span>
-						<span className="cart-count">{totalItems}</span>
-					</Link>
-				</nav>
-			</div>
-			<div className="amazon-header-bottom">
-				<nav className="amazon-categories">
-					<div className="category-group" onMouseEnter={() => setOpenGroup('appliances')} onMouseLeave={() => setOpenGroup(null)}>
-						<div className="category-header">Appliances</div>
-						<div className={`category-items ${openGroup === 'appliances' ? 'active' : ''}`}>
-							<Link to="/products?category=appliances&sub=refrigerator" className="category-link">Refrigerator</Link>
-							<Link to="/products?category=appliances&sub=air-conditioner" className="category-link">Air Conditioner</Link>
+				</div>
+				<div onMouseEnter={() => setOpenGroup('mobiles')} onMouseLeave={() => setOpenGroup(null)}>
+					<span>Mobiles</span>
+					{openGroup === 'mobiles' && (
+						<div className="dropdown">
+							<Link to="/products?category=mobiles&sub=apple">Apple</Link>
+							<Link to="/products?category=mobiles&sub=poco">Poco</Link>
+							<Link to="/products?category=mobiles&sub=vivo">Vivo</Link>
+							<Link to="/products?category=mobiles&sub=oppo">Oppo</Link>
+							<Link to="/products?category=mobiles&sub=realme">Realme</Link>
+							<Link to="/products?category=mobiles&sub=oneplus">OnePlus</Link>
+							<Link to="/products?category=mobiles&sub=motorola">Motorola</Link>
 						</div>
-					</div>
-					<div className="category-group" onMouseEnter={() => setOpenGroup('mobiles')} onMouseLeave={() => setOpenGroup(null)}>
-						<div className="category-header">Mobiles</div>
-						<div className={`category-items ${openGroup === 'mobiles' ? 'active' : ''}`}>
-							<Link to="/products?category=mobiles&sub=apple" className="category-link">Apple</Link>
-							<Link to="/products?category=mobiles&sub=poco" className="category-link">Poco</Link>
-							<Link to="/products?category=mobiles&sub=vivo" className="category-link">Vivo</Link>
-							<Link to="/products?category=mobiles&sub=oppo" className="category-link">Oppo</Link>
-							<Link to="/products?category=mobiles&sub=realme" className="category-link">Realme</Link>
-							<Link to="/products?category=mobiles&sub=oneplus" className="category-link">OnePlus</Link>
-							<Link to="/products?category=mobiles&sub=motorola" className="category-link">Motorola</Link>
+					)}
+				</div>
+				<div onMouseEnter={() => setOpenGroup('electronics')} onMouseLeave={() => setOpenGroup(null)}>
+					<span>Electronics</span>
+					{openGroup === 'electronics' && (
+						<div className="dropdown">
+							<Link to="/products?category=electronics&sub=home-theater">Home Theater</Link>
+							<Link to="/products?category=electronics&sub=sound-bar">Sound Bar</Link>
 						</div>
-					</div>
-					<div className="category-group" onMouseEnter={() => setOpenGroup('electronics')} onMouseLeave={() => setOpenGroup(null)}>
-						<div className="category-header">Electronics</div>
-						<div className={`category-items ${openGroup === 'electronics' ? 'active' : ''}`}>
-							<Link to="/products?category=electronics&sub=home-theater" className="category-link">Home Theater</Link>
-							<Link to="/products?category=electronics&sub=sound-bar" className="category-link">Sound Bar</Link>
+					)}
+				</div>
+				<div onMouseEnter={() => setOpenGroup('tv')} onMouseLeave={() => setOpenGroup(null)}>
+					<span>TV</span>
+					{openGroup === 'tv' && (
+						<div className="dropdown">
+							<Link to="/products?category=tv&sub=toshiba">Toshiba</Link>
+							<Link to="/products?category=tv&sub=mi">Mi</Link>
+							<Link to="/products?category=tv&sub=realme">Realme</Link>
+							<Link to="/products?category=tv&sub=samsung">Samsung</Link>
+							<Link to="/products?category=tv&sub=lg">LG</Link>
+							<Link to="/products?category=tv&sub=assembled-tv">Assembled TV</Link>
+							<Link to="/products?category=tv&sub=tcl">TCL</Link>
 						</div>
-					</div>
-					<div className="category-group" onMouseEnter={() => setOpenGroup('tv')} onMouseLeave={() => setOpenGroup(null)}>
-						<div className="category-header">TV</div>
-						<div className={`category-items ${openGroup === 'tv' ? 'active' : ''}`}>
-							<Link to="/products?category=tv&sub=toshiba" className="category-link">Toshiba</Link>
-							<Link to="/products?category=tv&sub=mi" className="category-link">Mi</Link>
-							<Link to="/products?category=tv&sub=realme" className="category-link">Realme</Link>
-							<Link to="/products?category=tv&sub=samsung" className="category-link">Samsung</Link>
-							<Link to="/products?category=tv&sub=lg" className="category-link">LG</Link>
-							<Link to="/products?category=tv&sub=assembled-tv" className="category-link">Assembled TV</Link>
-							<Link to="/products?category=tv&sub=tcl" className="category-link">TCL</Link>
+					)}
+				</div>
+				<div onMouseEnter={() => setOpenGroup('trending')} onMouseLeave={() => setOpenGroup(null)}>
+					<span>Trending</span>
+					{openGroup === 'trending' && (
+						<div className="dropdown">
+							<Link to="/products?category=trending&sub=best-sellers">Best Sellers</Link>
+							<Link to="/products?category=trending&sub=new-arrivals">New Arrivals</Link>
 						</div>
-					</div>
-					<div className="category-group" onMouseEnter={() => setOpenGroup('trending')} onMouseLeave={() => setOpenGroup(null)}>
-						<div className="category-header">Trending</div>
-						<div className={`category-items ${openGroup === 'trending' ? 'active' : ''}`}>
-							<Link to="/products?category=trending&sub=best-sellers" className="category-link">Best Sellers</Link>
-							<Link to="/products?category=trending&sub=new-arrivals" className="category-link">New Arrivals</Link>
-						</div>
-					</div>
-				</nav>
-			</div>
+					)}
+				</div>
+			</nav>
 		</header>
 	);
 }

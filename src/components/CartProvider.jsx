@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 const CartContext = createContext();
 
 const CART_KEY = "drift_enterprises_cart";
+const SAVED_FOR_LATER_KEY = "drift_enterprises_saved_for_later";
 const ORDERS_KEY = "drift_enterprises_orders";
 
 function loadFromStorage(key, fallback) {
@@ -19,12 +20,18 @@ function loadFromStorage(key, fallback) {
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => loadFromStorage(CART_KEY, []));
+  const [savedForLater, setSavedForLater] = useState(() => loadFromStorage(SAVED_FOR_LATER_KEY, []));
   const [orders, setOrders] = useState(() => loadFromStorage(ORDERS_KEY, []));
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(CART_KEY, JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SAVED_FOR_LATER_KEY, JSON.stringify(savedForLater));
+  }, [savedForLater]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -58,6 +65,40 @@ export function CartProvider({ children }) {
 
   const clearCart = () => setItems([]);
 
+  const saveForLater = (productId) => {
+    const item = items.find(i => i.id === productId);
+    if (!item) return;
+    
+    setSavedForLater((current) => {
+      const exists = current.find(i => i.id === productId);
+      if (exists) return current;
+      return [...current, item];
+    });
+    
+    removeItem(productId);
+  };
+
+  const moveToCart = (productId) => {
+    const item = savedForLater.find(i => i.id === productId);
+    if (!item) return;
+    
+    setItems((current) => {
+      const existing = current.find(i => i.id === productId);
+      if (existing) {
+        return current.map(i => 
+          i.id === productId ? { ...i, quantity: i.quantity + item.quantity } : i
+        );
+      }
+      return [...current, item];
+    });
+    
+    setSavedForLater((current) => current.filter(i => i.id !== productId));
+  };
+
+  const removeFromSaved = (productId) => {
+    setSavedForLater((current) => current.filter(i => i.id !== productId));
+  };
+
   const placeOrder = () => {
     if (items.length === 0) return;
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -77,7 +118,23 @@ export function CartProvider({ children }) {
     return { totalItems, subtotal, tax, total };
   }, [items]);
 
-  const value = { items, orders, addItem, removeItem, updateQuantity, clearCart, placeOrder, totalItems, subtotal, tax, total };
+  const value = { 
+    items, 
+    orders, 
+    addItem, 
+    removeItem, 
+    updateQuantity, 
+    clearCart, 
+    placeOrder, 
+    totalItems, 
+    subtotal, 
+    tax, 
+    total,
+    savedForLater,
+    saveForLater,
+    moveToCart,
+    removeFromSaved
+  };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

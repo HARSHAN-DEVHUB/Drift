@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ref as dbRef, get, push, serverTimestamp } from "firebase/database";
 import { database } from "../config/firebase";
 import { useCart } from "../components/CartProvider";
+import { useWishlist } from "../contexts/WishlistContext";
+import { useRecentlyViewed } from "../contexts/RecentlyViewedContext";
 import { useAuth } from "../contexts/AuthContext";
 import { productService } from "../services/productService";
 
@@ -11,6 +13,7 @@ export default function ProductDetail() {
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	const [product, setProduct] = useState(null);
+	const [relatedProducts, setRelatedProducts] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [currentImageIndex, setCurrentImageIndex] = useState(0);
 	const [reviews, setReviews] = useState([]);
@@ -18,7 +21,10 @@ export default function ProductDetail() {
 	const [showReviewForm, setShowReviewForm] = useState(false);
 	const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
 	const [submittingReview, setSubmittingReview] = useState(false);
+	const [quantity, setQuantity] = useState(1);
 	const { addItem } = useCart();
+	const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+	const { addToRecentlyViewed, recentlyViewed } = useRecentlyViewed();
 
 	useEffect(() => {
 		const loadProduct = async () => {
@@ -27,9 +33,20 @@ export default function ProductDetail() {
 				// Transform Firebase product to match expected format
 				const transformedProduct = {
 					...firebaseProduct,
-					image: firebaseProduct.images?.[0] || firebaseProduct.image || 'https://via.placeholder.com/400'
+					image: firebaseProduct.images?.[0] || firebaseProduct.image || 'https://via.placeholder.com/400',
+					stock: firebaseProduct.stock !== undefined ? firebaseProduct.stock : 100
 				};
 				setProduct(transformedProduct);
+				
+				// Add to recently viewed
+				addToRecentlyViewed(transformedProduct);
+				
+				// Load related products (same category)
+				const allProducts = await productService.getAllProducts();
+				const related = allProducts
+					.filter(p => p.category === transformedProduct.category && p.id !== id)
+					.slice(0, 4);
+				setRelatedProducts(related);
 			} catch (error) {
 				console.error("Error loading product:", error);
 				setProduct(null);
@@ -116,17 +133,52 @@ export default function ProductDetail() {
 		);
 
 	const handleAddToCart = () => {
-		addItem(product);
-		alert("✓ Added to cart successfully!");
+		if (product.stock === 0) {
+			alert("❌ This product is out of stock!");
+			return;
+		}
+		if (quantity > product.stock) {
+			alert(`❌ Only ${product.stock} items available in stock!`);
+			return;
+		}
+		for (let i = 0; i < quantity; i++) {
+			addItem(product);
+		}
+		alert(`✓ Added ${quantity} item(s) to cart successfully!`);
 	};
 
 	const handleBuyNow = () => {
-		addItem(product);
+		if (product.stock === 0) {
+			alert("❌ This product is out of stock!");
+			return;
+		}
+		if (quantity > product.stock) {
+			alert(`❌ Only ${product.stock} items available in stock!`);
+			return;
+		}
+		for (let i = 0; i < quantity; i++) {
+			addItem(product);
+		}
 		navigate("/checkout");
+	};
+
+	const toggleWishlist = () => {
+		if (isInWishlist(product.id)) {
+			removeFromWishlist(product.id);
+		} else {
+			addToWishlist(product);
+		}
+	};
+
+	const getStockStatus = (stock) => {
+		if (stock === 0) return { text: 'Out of Stock', color: '#f44336', bg: '#ffebee' };
+		if (stock < 10) return { text: `Only ${stock} left in stock!`, color: '#ff9800', bg: '#fff3e0' };
+		return { text: 'In Stock', color: '#4caf50', bg: '#e8f5e9' };
 	};
 
 	const images = product.images || [product.image];
 	const currentImage = images[currentImageIndex];
+	const stockStatus = getStockStatus(product.stock);
 
 	const nextImage = () => {
 		setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -138,6 +190,30 @@ export default function ProductDetail() {
 
 	return (
 		<div className="page-shell product-detail" style={{ maxWidth: "1200px" }}>
+			{/* Breadcrumbs */}
+			<div style={{ 
+				padding: '1rem 0.5rem', 
+				color: '#666', 
+				fontSize: '0.9rem',
+				display: 'flex',
+				alignItems: 'center',
+				gap: '0.5rem'
+			}}>
+				<Link to="/" style={{ color: '#666', textDecoration: 'none' }}>Home</Link>
+				<span>›</span>
+				<Link to="/products" style={{ color: '#666', textDecoration: 'none' }}>Products</Link>
+				<span>›</span>
+				{product.category && (
+					<>
+						<Link to={`/products?category=${product.category.toLowerCase()}`} style={{ color: '#666', textDecoration: 'none' }}>
+							{product.category}
+						</Link>
+						<span>›</span>
+					</>
+				)}
+				<span style={{ color: '#1a1a1a', fontWeight: '600' }}>{product.title?.substring(0, 30)}...</span>
+			</div>
+
 			<div className="product-detail-layout">
 				<div className="product-detail-image">
 					{images.length > 1 && (
@@ -156,28 +232,138 @@ export default function ProductDetail() {
 				</div>
 				<div className="product-detail-main">
 					<h1>{product.title}</h1>
+					{product.brand && (
+						<p style={{ color: '#666', marginBottom: '0.5rem' }}>Brand: <strong>{product.brand}</strong></p>
+					)}
 					<p className="amazon-product-rating">
-						{'★'.repeat(Math.round(product.rating))} <span className="rating-number">{product.rating.toFixed(1)}</span>
+						{'★'.repeat(Math.round(product.rating || 0))} <span className="rating-number">{product.rating?.toFixed(1) || 'N/A'}</span>
+						<span style={{ marginLeft: '1rem', color: '#666' }}>({reviews.length} reviews)</span>
 					</p>
+					
+					{/* Stock Status Badge */}
+					<div style={{
+						display: 'inline-block',
+						padding: '0.5rem 1rem',
+						background: stockStatus.bg,
+						color: stockStatus.color,
+						borderRadius: '8px',
+						fontWeight: '600',
+						margin: '1rem 0'
+					}}>
+						{stockStatus.text}
+					</div>
+
 					<p className="product-detail-price">
 						{product.mrp && <span style={{ textDecoration: 'line-through', color: '#888', marginRight: '10px' }}>MRP ₹{product.mrp.toFixed(2)}</span>}
 						<span className="currency">₹</span>
-						{product.price.toFixed(2)}
+						{product.price?.toFixed(2)}
+						{product.mrp && product.price && (
+							<span style={{ marginLeft: '1rem', color: '#4caf50', fontSize: '1rem', fontWeight: '600' }}>
+								{Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+							</span>
+						)}
 					</p>
 					<p className="product-detail-description">{product.description}</p>
+					
+					{/* Key Features */}
+					{product.features && product.features.length > 0 && (
+						<div style={{ marginTop: '1.5rem' }}>
+							<h3 style={{ marginBottom: '0.75rem', fontSize: '1.1rem' }}>Key Features:</h3>
+							<ul style={{ paddingLeft: '1.5rem', lineHeight: '1.8' }}>
+								{product.features.map((feature, index) => (
+									<li key={index}>{feature}</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</div>
 				<aside className="product-detail-buybox">
 					<p className="product-detail-price">
 						{product.mrp && <span style={{ textDecoration: 'line-through', color: '#888', marginRight: '10px' }}>MRP ₹{product.mrp.toFixed(2)}</span>}
 						<span className="currency">₹</span>
-						{product.price.toFixed(2)}
+						{product.price?.toFixed(2)}
 					</p>
+					
+					{/* Stock Status */}
+					<div style={{
+						padding: '0.75rem',
+						background: stockStatus.bg,
+						color: stockStatus.color,
+						borderRadius: '8px',
+						fontWeight: '600',
+						marginBottom: '1rem',
+						textAlign: 'center'
+					}}>
+						{stockStatus.text}
+					</div>
+
 					<p className="text-muted">FREE delivery with DRIFT ENTERPRISES Prime. This is a demo experience.</p>
-					<button className="primary-button wide" onClick={handleAddToCart} style={{ width: "100%" }}>
-						🛒 Add to Cart
+					
+					{/* Quantity Selector */}
+					{product.stock > 0 && (
+						<div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+							<label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+								Quantity:
+							</label>
+							<select 
+								value={quantity}
+								onChange={(e) => setQuantity(Number(e.target.value))}
+								style={{ 
+									width: '100%', 
+									padding: '0.75rem', 
+									borderRadius: '8px', 
+									border: '1px solid #ddd',
+									fontSize: '1rem'
+								}}
+							>
+								{[...Array(Math.min(product.stock, 10))].map((_, i) => (
+									<option key={i + 1} value={i + 1}>{i + 1}</option>
+								))}
+							</select>
+						</div>
+					)}
+
+					<button 
+						className="primary-button wide" 
+						onClick={handleAddToCart} 
+						disabled={product.stock === 0}
+						style={{ 
+							width: "100%",
+							opacity: product.stock === 0 ? 0.5 : 1,
+							cursor: product.stock === 0 ? 'not-allowed' : 'pointer'
+						}}
+					>
+						{product.stock === 0 ? '❌ Out of Stock' : '🛒 Add to Cart'}
 					</button>
-					<button className="primary-button wide" onClick={handleBuyNow} style={{ marginTop: ".75rem", width: "100%", background: "linear-gradient(135deg, #1a1a1a 0%, #000000 100%)" }}>
+					<button 
+						className="primary-button wide" 
+						onClick={handleBuyNow} 
+						disabled={product.stock === 0}
+						style={{ 
+							marginTop: ".75rem", 
+							width: "100%", 
+							background: product.stock === 0 ? '#ccc' : "linear-gradient(135deg, #1a1a1a 0%, #000000 100%)",
+							cursor: product.stock === 0 ? 'not-allowed' : 'pointer'
+						}}
+					>
 						⚡ Buy Now
+					</button>
+					<button
+						onClick={toggleWishlist}
+						style={{
+							marginTop: '.75rem',
+							width: '100%',
+							padding: '0.75rem',
+							background: 'white',
+							color: isInWishlist(product.id) ? '#e71d36' : '#666',
+							border: `2px solid ${isInWishlist(product.id) ? '#e71d36' : '#ddd'}`,
+							borderRadius: '8px',
+							cursor: 'pointer',
+							fontWeight: '600',
+							fontSize: '1rem'
+						}}
+					>
+						{isInWishlist(product.id) ? '❤️ Remove from Wishlist' : '🤍 Add to Wishlist'}
 					</button>
 				</aside>
 			</div>
@@ -186,6 +372,92 @@ export default function ProductDetail() {
 					Back to all products
 				</Link>
 			</p>
+
+			{/* Related Products */}
+			{relatedProducts.length > 0 && (
+				<div style={{ marginTop: '3rem', borderTop: '2px solid #e8e8e8', paddingTop: '2rem' }}>
+					<h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>🔗 Related Products</h2>
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+						{relatedProducts.map((related) => (
+							<Link 
+								key={related.id} 
+								to={`/products/${related.id}`}
+								style={{ textDecoration: 'none', color: 'inherit' }}
+							>
+								<div style={{ 
+									background: 'white',
+									border: '1px solid #e8e8e8',
+									borderRadius: '12px',
+									overflow: 'hidden',
+									transition: 'transform 0.2s, box-shadow 0.2s',
+									cursor: 'pointer'
+								}}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.transform = 'translateY(-5px)';
+									e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)';
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.transform = 'translateY(0)';
+									e.currentTarget.style.boxShadow = 'none';
+								}}
+								>
+									<img 
+										src={related.images?.[0] || related.image} 
+										alt={related.title}
+										style={{ width: '100%', height: '200px', objectFit: 'cover' }}
+									/>
+									<div style={{ padding: '1rem' }}>
+										<h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+											{related.title}
+										</h3>
+										<p style={{ fontSize: '1.2rem', fontWeight: '700', color: '#e71d36' }}>
+											₹{related.price?.toLocaleString()}
+										</p>
+									</div>
+								</div>
+							</Link>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Recently Viewed */}
+			{recentlyViewed.length > 1 && (
+				<div style={{ marginTop: '3rem', borderTop: '2px solid #e8e8e8', paddingTop: '2rem' }}>
+					<h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>👁️ Recently Viewed</h2>
+					<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+						{recentlyViewed.filter(item => item.id !== id).slice(0, 5).map((viewed) => (
+							<Link 
+								key={viewed.id} 
+								to={`/products/${viewed.id}`}
+								style={{ textDecoration: 'none', color: 'inherit' }}
+							>
+								<div style={{ 
+									background: 'white',
+									border: '1px solid #e8e8e8',
+									borderRadius: '8px',
+									overflow: 'hidden',
+									fontSize: '0.9rem'
+								}}>
+									<img 
+										src={viewed.image} 
+										alt={viewed.title}
+										style={{ width: '100%', height: '150px', objectFit: 'cover' }}
+									/>
+									<div style={{ padding: '0.75rem' }}>
+										<p style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.25rem' }}>
+											{viewed.title}
+										</p>
+										<p style={{ fontWeight: '700', color: '#e71d36' }}>
+											₹{viewed.price?.toLocaleString()}
+										</p>
+									</div>
+								</div>
+							</Link>
+						))}
+					</div>
+				</div>
+			)}
 
 			{/* Reviews Section */}
 			<div style={{ marginTop: '3rem', borderTop: '2px solid #e8e8e8', paddingTop: '2rem' }}>

@@ -140,6 +140,82 @@ export default function Orders() {
                   </div>
                 </div>
 
+                {/* Order Tracking Timeline */}
+                {order.status !== 'cancelled' && (
+                  <div style={{ margin: '1.5rem 0', padding: '1rem', background: '#f8f9fa', borderRadius: '12px' }}>
+                    <h4 style={{ fontSize: '1rem', marginBottom: '1rem', color: '#1a1a1a' }}>📦 Order Tracking:</h4>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
+                      {/* Progress Line */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '2%',
+                        right: '2%',
+                        height: '4px',
+                        background: '#e0e0e0',
+                        borderRadius: '2px',
+                        zIndex: 0
+                      }}>
+                        <div style={{
+                          height: '100%',
+                          background: '#4caf50',
+                          borderRadius: '2px',
+                          width: order.status === 'pending' ? '0%' : 
+                                  order.status === 'shipped' ? '50%' : 
+                                  order.status === 'delivered' ? '100%' : '0%',
+                          transition: 'width 0.5s ease'
+                        }}></div>
+                      </div>
+
+                      {/* Timeline Steps */}
+                      {[
+                        { key: 'pending', icon: '📝', label: 'Order Placed' },
+                        { key: 'shipped', icon: '🚚', label: 'Shipped' },
+                        { key: 'delivered', icon: '✅', label: 'Delivered' }
+                      ].map((step, index) => {
+                        const isCompleted = 
+                          (step.key === 'pending') ||
+                          (step.key === 'shipped' && ['shipped', 'delivered'].includes(order.status)) ||
+                          (step.key === 'delivered' && order.status === 'delivered');
+                        const isCurrent = order.status === step.key;
+
+                        return (
+                          <div key={step.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              background: isCompleted ? '#4caf50' : isCurrent ? '#2196f3' : '#e0e0e0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.2rem',
+                              marginBottom: '0.5rem',
+                              border: isCurrent ? '3px solid #1976d2' : 'none',
+                              transition: 'all 0.3s ease'
+                            }}>
+                              {step.icon}
+                            </div>
+                            <p style={{ 
+                              fontSize: '0.85rem', 
+                              fontWeight: isCompleted || isCurrent ? '600' : '400',
+                              color: isCompleted || isCurrent ? '#1a1a1a' : '#999',
+                              textAlign: 'center'
+                            }}>
+                              {step.label}
+                            </p>
+                            {isCompleted && (
+                              <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem' }}>
+                                {new Date(order.placedAt || order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ borderTop: "1px solid #e8e8e8", paddingTop: "1.5rem" }}>
                   <h4 style={{ fontSize: "1rem", marginBottom: "1rem", color: "#1a1a1a" }}>Items ({order.items?.length || 0}):</h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

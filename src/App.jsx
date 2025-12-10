@@ -2,10 +2,14 @@ import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./components/CartProvider";
+import { WishlistProvider } from "./contexts/WishlistContext";
+import { RecentlyViewedProvider } from "./contexts/RecentlyViewedContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./components/AdminLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Header from "./components/Header";
+import ScrollToTop from "./components/ScrollToTop";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
@@ -26,7 +30,10 @@ import ActivityLogs from './pages/ActivityLogs';
 import AdminSettings from './pages/AdminSettings';
 import Account from './pages/Account';
 import Orders from "./pages/Orders";
+import Wishlist from "./pages/Wishlist";
 import Login from "./pages/Login";
+import Contact from "./pages/Contact";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import "./index.css";
 
@@ -35,16 +42,23 @@ export default function App() {
 		<ErrorBoundary>
 			<AuthProvider>
 				<CartProvider>
-					<Header />
-				<main className="amazon-main">
+					<WishlistProvider>
+						<RecentlyViewedProvider>
+							<ToastProvider>
+								<Header />
+								<ScrollToTop />
+							<main className="amazon-main">
 					<Routes>
 						{/* Public Routes */}
 						<Route path="/" element={<Home />} />
 						<Route path="/products" element={<Products />} />
 						<Route path="/products/:id" element={<ProductDetail />} />
 						<Route path="/cart" element={<Cart />} />
+						<Route path="/wishlist" element={<Wishlist />} />
 						<Route path="/checkout" element={<Checkout />} />
 						<Route path="/login" element={<Login />} />
+						<Route path="/contact" element={<Contact />} />
+						<Route path="/about" element={<About />} />
 						<Route path="/admin/setup" element={<AdminSetup />} />
 						
 						{/* Customer Routes */}
@@ -102,10 +116,10 @@ export default function App() {
 					<div className="footer-column">
 						<h4>About Us</h4>
 						<ul>
-							<li><Link to="/">🏢 About Drift Enterprises</Link></li>
-							<li><Link to="/">💼 Careers</Link></li>
-							<li><Link to="/">📰 News & Press</Link></li>
-							<li><Link to="/">📝 Blog</Link></li>
+							<li><Link to="/about">🏢 About Drift Enterprises</Link></li>
+							<li><Link to="/contact">💼 Careers</Link></li>
+							<li><Link to="/contact">📰 News & Press</Link></li>
+							<li><Link to="/contact">📝 Blog</Link></li>
 						</ul>
 					</div>
 					<div className="footer-column">
@@ -121,18 +135,18 @@ export default function App() {
 						<h4>For Sellers</h4>
 						<ul>
 							<li><Link to="/admin/products">🛒 Sell with Drift</Link></li>
-							<li><Link to="/">🤝 Partner Program</Link></li>
-							<li><Link to="/">📢 Advertising</Link></li>
-							<li><Link to="/">🚚 Logistics</Link></li>
+							<li><Link to="/contact">🤝 Partner Program</Link></li>
+							<li><Link to="/contact">📢 Advertising</Link></li>
+							<li><Link to="/contact">🚚 Logistics</Link></li>
 						</ul>
 					</div>
 					<div className="footer-column">
 						<h4>Support</h4>
 						<ul>
 							<li><Link to="/account">👤 My Account</Link></li>
-							<li><Link to="/">💬 Support Center</Link></li>
-							<li><Link to="/">📞 Contact Support</Link></li>
-							<li><Link to="/account">⚙️ Preferences</Link></li>
+							<li><Link to="/contact">💬 Support Center</Link></li>
+							<li><Link to="/orders">📦 Track Orders</Link></li>
+							<li><Link to="/contact">📞 Contact Us</Link></li>
 						</ul>
 					</div>
 				</div>
@@ -141,6 +155,9 @@ export default function App() {
 					<div className="footer-copyright">© 2024 Drift Enterprises - All Rights Reserved | Crafted with ❤️</div>
 				</div>
 			</footer>
+							</ToastProvider>
+						</RecentlyViewedProvider>
+					</WishlistProvider>
 				</CartProvider>
 			</AuthProvider>
 		</ErrorBoundary>

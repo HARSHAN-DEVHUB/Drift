@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useCart } from "../components/CartProvider";
 
 export default function Cart() {
-  const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const { items, updateQuantity, removeItem, subtotal, savedForLater, saveForLater, moveToCart, removeFromSaved } = useCart();
 
   return (
     <div className="page-shell" style={{ maxWidth: "1200px" }}>
@@ -39,6 +39,21 @@ export default function Cart() {
                         style={{ width: 60, padding: "0.25rem", marginLeft: "0.25rem" }}
                       />
                     </label>
+                    <button 
+                      onClick={() => saveForLater(i.id)}
+                      style={{ 
+                        marginLeft: '0.5rem', 
+                        padding: '0.5rem 1rem', 
+                        background: '#2196f3', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                    >
+                      💾 Save for Later
+                    </button>
                     <button onClick={() => removeItem(i.id)}>
                       🗑️ Remove
                     </button>
@@ -66,6 +81,69 @@ export default function Cart() {
                 🚀 Proceed to Checkout
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved for Later Section */}
+      {savedForLater && savedForLater.length > 0 && (
+        <div style={{ marginTop: '3rem', borderTop: '2px solid #e8e8e8', paddingTop: '2rem' }}>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>💾 Saved for Later ({savedForLater.length})</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            {savedForLater.map((item) => (
+              <div 
+                key={item.id}
+                style={{
+                  background: 'white',
+                  border: '1px solid #e8e8e8',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  padding: '1rem'
+                }}
+              >
+                <img 
+                  src={item.image} 
+                  alt={item.title}
+                  style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '1rem' }}
+                />
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.title}
+                </h3>
+                <p style={{ fontSize: '1.2rem', fontWeight: '700', color: '#e71d36', marginBottom: '1rem' }}>
+                  ₹{item.price?.toFixed(2)}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => moveToCart(item.id)}
+                    style={{
+                      padding: '0.75rem',
+                      background: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                  >
+                    🛒 Move to Cart
+                  </button>
+                  <button
+                    onClick={() => removeFromSaved(item.id)}
+                    style={{
+                      padding: '0.75rem',
+                      background: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600'
+                    }}
+                  >
+                    🗑️ Remove
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

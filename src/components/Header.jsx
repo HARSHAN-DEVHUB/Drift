@@ -60,7 +60,7 @@ export default function Header() {
 
 				<nav className="nav-links">
 					{userIsAdmin && (
-						<Link to="/admin/products">Admin</Link>
+						<Link to="/admin">Settings</Link>
 					)}
 					{userIsAuthenticated ? (
 						<>

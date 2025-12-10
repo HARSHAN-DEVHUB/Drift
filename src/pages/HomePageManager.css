@@ -5,7 +5,7 @@
 }
 
 .manager-header {
-  background: linear-gradient(135deg, #e71d36 0%, #c41530 100%);
+  background: #e71d36;
   color: white;
   padding: 2.5rem;
   border-radius: 16px;

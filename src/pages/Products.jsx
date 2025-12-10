@@ -186,16 +186,18 @@ export default function Products() {
 				{filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
 			</p>
 
-			<div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+			<div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexDirection: window.innerWidth < 900 ? 'column' : 'row' }}>
 				{/* Filters Sidebar */}
 				<div style={{ 
-					width: '280px', 
+					width: window.innerWidth < 900 ? '100%' : '280px',
+					minWidth: window.innerWidth < 900 ? '100%' : '280px',
+					maxWidth: '100%',
 					flexShrink: 0,
 					background: 'white',
 					border: '1px solid #e8e8e8',
 					borderRadius: '12px',
 					padding: '1.5rem',
-					position: 'sticky',
+					position: window.innerWidth < 900 ? 'static' : 'sticky',
 					top: '20px'
 				}}>
 					<h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem', fontWeight: '700' }}>🔧 Filters</h3>
@@ -304,7 +306,7 @@ export default function Products() {
 				</div>
 
 				{/* Products Grid */}
-				<div style={{ flex: 1 }}>
+				<div style={{ flex: 1, minWidth: 0, width: '100%' }}>
 					{filteredProducts.length === 0 ? (
 						<div className="empty-state">
 							<p style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>No products found</p>

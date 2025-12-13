@@ -202,6 +202,51 @@
   border-color: #e71d36;
 }
 
+.stock-input.has-changes {
+  border-color: #ff9800;
+  background-color: #fff3e0;
+}
+
+.stock-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stock-edit-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.save-stock-btn {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-stock-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.saving-indicator {
+  font-size: 1.2rem;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .stock-value {
   font-weight: 700;
   color: #e71d36;

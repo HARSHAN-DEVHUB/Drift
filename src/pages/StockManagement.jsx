@@ -8,6 +8,8 @@ const StockManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('all'); // all, low-stock, out-of-stock
   const [selectedLocation, setSelectedLocation] = useState('all');
+  const [editingStock, setEditingStock] = useState({}); // Track local edits
+  const [savingStock, setSavingStock] = useState({}); // Track saving state
 
   // Mock locations - can be fetched from Firebase later
   const locations = ['Main Warehouse', 'Store 1', 'Store 2', 'Online Warehouse'];
@@ -21,6 +23,8 @@ const StockManagement = () => {
     try {
       const data = await productService.getAllProducts();
       setProducts(data);
+      // Clear editing state after load
+      setEditingStock({});
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -28,13 +32,46 @@ const StockManagement = () => {
     }
   };
 
+  const handleStockChange = (productId, newValue) => {
+    // Update local state immediately for smooth editing
+    setEditingStock(prev => ({
+      ...prev,
+      [productId]: newValue
+    }));
+  };
+
   const updateStock = async (productId, newStock) => {
+    // Validate the stock value
+    const stockValue = parseInt(newStock);
+    if (isNaN(stockValue) || stockValue < 0) {
+      alert('Please enter a valid stock quantity (0 or greater)');
+      return;
+    }
+
+    setSavingStock(prev => ({ ...prev, [productId]: true }));
+    
     try {
-      await productService.updateProduct(productId, { stock: parseInt(newStock) });
-      loadProducts();
+      await productService.updateProduct(productId, { stock: stockValue });
+      
+      // Update local products state without full reload
+      setProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, stock: stockValue } : p
+      ));
+      
+      // Clear editing state for this product
+      setEditingStock(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
+      
+      // Show success feedback (optional)
+      console.log('Stock updated successfully');
     } catch (error) {
       console.error('Error updating stock:', error);
-      alert('Failed to update stock');
+      alert('Failed to update stock. Please try again.');
+    } finally {
+      setSavingStock(prev => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -171,6 +208,14 @@ const StockManagement = () => {
                   statusText = 'Low Stock';
                 }
 
+                // Check if this product has local edits
+                const currentStockValue = editingStock[product.id] !== undefined 
+                  ? editingStock[product.id] 
+                  : stock;
+                const hasChanges = editingStock[product.id] !== undefined && 
+                  editingStock[product.id] !== stock.toString();
+                const isSaving = savingStock[product.id];
+
                 return (
                   <tr key={product.id}>
                     <td>
@@ -183,13 +228,36 @@ const StockManagement = () => {
                     <td className="product-name">{product.name || product.title || 'Unnamed Product'}</td>
                     <td>{product.sku || product.id || 'N/A'}</td>
                     <td>
-                      <input
-                        type="number"
-                        className="stock-input"
-                        value={stock}
-                        min="0"
-                        onChange={(e) => updateStock(product.id, e.target.value)}
-                      />
+                      <div className="stock-edit-container">
+                        <input
+                          type="number"
+                          className={`stock-input ${hasChanges ? 'has-changes' : ''}`}
+                          value={currentStockValue}
+                          min="0"
+                          onChange={(e) => handleStockChange(product.id, e.target.value)}
+                          onBlur={(e) => {
+                            if (hasChanges) {
+                              updateStock(product.id, e.target.value);
+                            }
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && hasChanges) {
+                              updateStock(product.id, e.target.value);
+                            }
+                          }}
+                          disabled={isSaving}
+                        />
+                        {hasChanges && !isSaving && (
+                          <button 
+                            className="save-stock-btn"
+                            onClick={() => updateStock(product.id, currentStockValue)}
+                            title="Save changes"
+                          >
+                            ✓
+                          </button>
+                        )}
+                        {isSaving && <span className="saving-indicator">💾</span>}
+                      </div>
                     </td>
                     <td>₹{product.price?.toLocaleString()}</td>
                     <td className="stock-value">₹{stockValue.toLocaleString()}</td>

@@ -8,7 +8,7 @@ export default function Products() {
 	const [products, setProducts] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [searchParams, setSearchParams] = useSearchParams();
-	const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+	const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
 	const [priceRange, setPriceRange] = useState([0, 500000]);
 	const [selectedBrands, setSelectedBrands] = useState([]);
 	const [stockFilter, setStockFilter] = useState('all');
@@ -49,7 +49,7 @@ export default function Products() {
 
 	const category = searchParams.get('category');
 	const sub = searchParams.get('sub');
-	const searchQuery = searchParams.get('search') || '';
+	const searchQuery = searchParams.get('q') || '';
 	
 	// Update search term when URL changes
 	useEffect(() => {
@@ -59,7 +59,7 @@ export default function Products() {
 	const handleSearch = (e) => {
 		e.preventDefault();
 		const params = {};
-		if (searchTerm) params.search = searchTerm;
+		if (searchTerm) params.q = searchTerm;
 		if (category) params.category = category;
 		if (sub) params.sub = sub;
 		setSearchParams(params);

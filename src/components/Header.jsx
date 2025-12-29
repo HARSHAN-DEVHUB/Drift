@@ -11,7 +11,6 @@ export default function Header() {
 	const [openGroup, setOpenGroup] = useState(null);
 	const [mobileCategory, setMobileCategory] = useState(null);
 	const [searchTerm, setSearchTerm] = useState('');
-	const [searchCategory, setSearchCategory] = useState('all');
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const navigate = useNavigate();
 	
@@ -27,9 +26,10 @@ export default function Header() {
 	const handleSearch = (e) => {
 		e.preventDefault();
 		const params = new URLSearchParams();
-		if (searchTerm) params.set('search', searchTerm);
-		if (searchCategory !== 'all') params.set('category', searchCategory);
-		navigate(`/products?${params.toString()}`);
+		// use `q` param for query string to match product search logic
+		if (searchTerm) params.set('q', searchTerm);
+		const query = params.toString();
+		navigate(`/products${query ? `?${query}` : ''}`);
 		setSearchTerm('');
 	};
 
@@ -42,13 +42,6 @@ export default function Header() {
 				</Link>
 				
 				<form className="search-bar" onSubmit={handleSearch}>
-					<select value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)}>
-						<option value="all">All</option>
-						<option value="electronics">Electronics</option>
-						<option value="mobiles">Mobiles</option>
-						<option value="appliances">Appliances</option>
-						<option value="tv">TV</option>
-					</select>
 					<input 
 						type="text"
 						placeholder="Search products..." 

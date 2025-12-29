@@ -131,15 +131,7 @@ export default function App() {
 							<li><a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">💼 LinkedIn</a></li>
 						</ul>
 					</div>
-					<div className="footer-column">
-						<h4>For Sellers</h4>
-						<ul>
-							<li><Link to="/admin/products">🛒 Sell with Drift</Link></li>
-							<li><Link to="/contact">🤝 Partner Program</Link></li>
-							<li><Link to="/contact">📢 Advertising</Link></li>
-							<li><Link to="/contact">🚚 Logistics</Link></li>
-						</ul>
-					</div>
+
 					<div className="footer-column">
 						<h4>Support</h4>
 						<ul>

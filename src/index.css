@@ -536,8 +536,8 @@ footer {
 .header-container {
   display: flex;
   align-items: center;
-  padding: 1.25rem 3rem;
-  gap: 3rem;
+  padding: 1.1rem 2.2rem;
+  gap: 2.2rem;
   max-width: 1920px;
   margin: 0 auto;
   position: relative;
